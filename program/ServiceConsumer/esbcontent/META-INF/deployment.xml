@@ -1,0 +1,9 @@
+<jbossesb-deployment>
+
+  <depends>jboss.esb:deployment=soap.esb</depends>
+  <depends>jboss.esb:service=SoapUIClientService</depends>
+  
+  <jmsQueue>at_consumer_esb</jmsQueue>
+  <jmsQueue>at_consumer_esb_reply</jmsQueue>
+   <jmsQueue>at_consumer_gw</jmsQueue> 
+ </jbossesb-deployment>

@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<jbossesb parameterReloadSecs="5"
+ xmlns="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd http://anonsvn.jboss.org/repos/labs/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd">
+ <providers>
+  <jbr-provider host="localhost" name="JBRProviderTheatre" protocol="http">
+   <jbr-bus busid="Http-Theatre" port="8767"/>
+  </jbr-provider>
+  <jms-provider connection-factory="ConnectionFactory" name="TheaterMQ">
+   <jms-bus busid="GWChannelTheatre">
+    <jms-message-filter dest-name="queue/theatre_service_gw" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="ESBChannelTheatre">
+    <jms-message-filter dest-name="queue/theatre_service_esb" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>
+  <jbr-provider host="localhost" name="JBRSocketTheatre" protocol="socket">
+   <jbr-bus busid="Socket-Theatre" port="8890"/>
+  </jbr-provider>
+ </providers>
+ <services>
+  <service category="Services" description="Theatre booking" name="TheatreService">
+   <listeners>
+    <jms-listener busidref="GWChannelTheatre" is-gateway="true" name="JMSGatewayTheatre"/>
+    <jms-listener busidref="ESBChannelTheatre" name="ESBListenerTheatrer"/>
+    <jbr-listener busidref="Http-Theatre" is-gateway="true" name="HTTPListenerTheatre"/>
+    <jbr-listener busidref="Socket-Theatre" is-gateway="true" name="SocketListenerTheatre"/>
+   </listeners>
+   <actions>
+    <action class="org.jboss.soa.esb.actions.soap.SOAPProcessor" name="WSAdpater">
+     <property name="jbossws-endpoint" value="TheatreService"/>
+    </action>
+   </actions>
+  </service>
+ </services>
+</jbossesb>

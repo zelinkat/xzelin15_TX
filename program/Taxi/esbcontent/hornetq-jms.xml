@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration xmlns="urn:hornetq" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="urn:hornetq ../schemas/hornetq-jms.xsd ">
+    
+   <queue name="taxi_service_gw">
+        <entry name="queue/taxi_service_gw"/>
+   </queue>
+    
+   <queue name="taxi_serivce_esb">
+        <entry name="queue/taxi_service_esb"/>
+   </queue>   
+    
+</configuration> 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<jbossesb-deployment>
+	<depends>jboss.esb:deployment=soap.esb</depends>
+	<esb-depends>restaurant.war</esb-depends>
+	<jmsQueue>restaurant_service_gw</jmsQueue>
+    <jmsQueue>restaurant_service_esb</jmsQueue>
+</jbossesb-deployment>

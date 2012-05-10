@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<jbossesb-deployment>
+	<depends>jboss.esb:deployment=soap.esb</depends>
+	<esb-depends>theatre.war</esb-depends>
+	<jmsQueue>theatre_service_gw</jmsQueue>
+    <jmsQueue>theatre_service_esb</jmsQueue>
+</jbossesb-deployment>

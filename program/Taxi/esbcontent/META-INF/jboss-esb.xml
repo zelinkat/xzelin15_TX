@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<jbossesb parameterReloadSecs="5"
+ xmlns="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd http://anonsvn.jboss.org/repos/labs/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.3.0.xsd">
+ <providers>
+  <jbr-provider host="localhost" name="JBRProviderTaxi" protocol="http">
+   <jbr-bus busid="Http-Taxi" port="8766"/>
+  </jbr-provider>
+  <jms-provider connection-factory="ConnectionFactory" name="TaxiMQ">
+   <jms-bus busid="GWChannelTaxi">
+    <jms-message-filter dest-name="queue/taxi_service_gw" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="ESBChannelTaxi">
+    <jms-message-filter dest-name="queue/taxi_service_esb" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>
+  <jbr-provider host="localhost" name="JBRSocketTaxi" protocol="socket">
+   <jbr-bus busid="Socket-Taxi" port="8889"/>
+  </jbr-provider>
+ </providers>
+ <services>
+  <service category="Services" description="Taxi booking" name="TaxiService">
+   <listeners>
+    <jms-listener busidref="GWChannelTaxi" is-gateway="true" name="JMSGatewayTaxi"/>
+    <jms-listener busidref="ESBChannelTaxi" name="ESBListenerTaxi"/>
+    <jbr-listener busidref="Http-Taxi" is-gateway="true" name="HTTPListenerTaxi"/>
+    <jbr-listener busidref="Socket-Taxi" is-gateway="true" name="SocketListenerTaxi"/>
+   </listeners>
+   <actions>
+    <action class="org.jboss.soa.esb.actions.soap.SOAPProcessor" name="WSAdpater">
+     <property name="jbossws-endpoint" value="TaxiService"/>
+    </action>
+   </actions>
+  </service>
+ </services>
+</jbossesb>

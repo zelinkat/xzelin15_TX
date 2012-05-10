@@ -1,0 +1,123 @@
+<?xml version="1.0"?>
+<jbossesb parameterReloadSecs="5"
+ xmlns="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.0.1.xsd"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://anonsvn.labs.jboss.com/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.0.1.xsd http://anonsvn.jboss.org/repos/labs/labs/jbossesb/trunk/product/etc/schemas/xml/jbossesb-1.0.1.xsd">
+ <providers>
+  <jms-provider connection-factory="ConnectionFactory" name="ATMQ">
+   <jms-bus busid="GwChannelAT">
+    <jms-message-filter dest-name="queue/at_consumer_gw" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="EsbChannelAT">
+    <jms-message-filter dest-name="queue/at_consumer_esb" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>
+  <!--  <jms-provider connection-factory="ConnectionFactory" name="StartMQ">
+   <jms-bus busid="StartESBChannel">
+    <jms-message-filter dest-name="queue/start_consumer_esb" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="StartGWChannel">
+    <jms-message-filter dest-name="queue/start_consumer_gw" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>
+  <jms-provider connection-factory="ConnectionFactory" name="CommitMQ">
+   <jms-bus busid="CommitESBChannel">
+    <jms-message-filter dest-name="queue/commit_consumer_esb" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="CommitGWChannel">
+    <jms-message-filter dest-name="queue/commit_consumer_gw" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>
+  <jms-provider connection-factory="ConnectionFactory" name="Restaurant2MQ">
+   <jms-bus busid="Restaurant2ESBChannel">
+    <jms-message-filter dest-name="queue/restaurant2_consumer_esb" dest-type="QUEUE"/>
+   </jms-bus>
+   <jms-bus busid="Restaurant2GWChannel">
+    <jms-message-filter dest-name="queue/restaurant2_consumer_gw" dest-type="QUEUE"/>
+   </jms-bus>
+  </jms-provider>-->
+ </providers>
+ <services>
+  <service category="Transactions"
+   description="Restaurant service consumer" name="AtomicTransaction">
+   <listeners>
+    <jms-listener busidref="EsbChannelAT" name="JMSConsumerListenerESB"/>
+    <jms-listener busidref="GwChannelAT" is-gateway="true" name="JMSConsumerListenerGW"/>
+   </listeners>
+   <actions mep="OneWay">
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.MyRequestAction" name="request-mapper">
+    <property name="exceptionMethod" value="exceptionHandler"/>
+    </action>
+    
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.DataBridgeAction" name="data-brigde-restaurant">
+    	<property name="exceptionMethod" value="exceptionHandler"/>
+    	<property name="dataLocation" value="restaurant" /> 
+    </action>
+    
+    
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.UpgradedSOAPClient" name="EnrollRestaurant">
+     	<property name="wsdl" value="http://127.0.0.1:8080/restaurant/RestaurantService?wsdl"/>
+     	<property name="custom-handlers" value="com.arjuna.mw.wst11.client.JaxWSHeaderContextProcessor"/>
+     	<property name="operationName" value="bookSeats"/>
+     	<property name="ServiceName" value="RestaurantService"/>     
+     	<property name="EndPointName" value="RestaurantPort" />
+     	<property name="tsParticipantEnrollment" value="true" />
+    </action> 
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.DataBridgeAction" name="data-brigde-taxi">
+    	<property name="exceptionMethod" value="exceptionHandler"/>
+    	<property name="dataLocation" value="taxi" /> 
+    </action> 
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.UpgradedSOAPClient" name="EnrollTaxi">
+     	<property name="operationName" value="bookTaxi"/>
+     	<property name="EndPointName" value="TaxiPort"/>
+     	<property name="ServiceName" value="TaxiService"/>   
+     	<property name="wsdl" value="http://127.0.0.1:8080/taxi/TaxiService?wsdl"/>
+     	<property name="custom-handlers" value="com.arjuna.mw.wst11.client.JaxWSHeaderContextProcessor"/>
+     	<property name="tsParticipantEnrollment" value="true" />
+    </action>
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.DataBridgeAction" name="data-brigde-theatrecircles">
+    	<property name="exceptionMethod" value="exceptionHandler"/>
+    	<property name="dataLocation" value="theatrecirclecount" /> 
+    </action>
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.UpgradedSOAPClient" name="EnrollTheatre">
+     	<property name="SOAPAction" value="bookSeats"/>
+     	<property name="EndPointName" value="TheatrePort"/>
+     	<property name="ServiceName" value="TheatreService"/>
+     	<property name="wsdl" value="http://127.0.0.1:8080/theatre/TheatreService?wsdl"/>
+     	<property name="custom-handlers" value="com.arjuna.mw.wst11.client.JaxWSHeaderContextProcessor"/>
+     	<property name="tsParticipantEnrollment" value="true" />  
+    </action>
+    
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.DataBridgeAction" name="data-brigde-theatrestalls">
+    	<property name="exceptionMethod" value="exceptionHandler"/>
+    	<property name="dataLocation" value="theatrestallscount" /> 
+    </action>
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.UpgradedSOAPClient" name="EnrollTheatreStalls">
+     	<property name="SOAPAction" value="bookSeats"/>
+     	<property name="EndPointName" value="TheatrePort"/>
+     	<property name="ServiceName" value="TheatreService"/>
+     	<property name="wsdl" value="http://127.0.0.1:8080/theatre/TheatreService?wsdl"/>
+     	<property name="custom-handlers" value="com.arjuna.mw.wst11.client.JaxWSHeaderContextProcessor"/>
+     	<property name="tsParticipantEnrollment" value="true" />  
+    </action>
+    
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.DataBridgeAction" name="data-brigde-theatrebalcony">
+    	<property name="exceptionMethod" value="exceptionHandler"/>
+    	<property name="dataLocation" value="theatrebalconycount" /> 
+    </action>
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.UpgradedSOAPClient" name="EnrollTheatreBalcony">
+     	<property name="SOAPAction" value="bookSeats"/>
+     	<property name="EndPointName" value="TheatrePort"/>
+     	<property name="ServiceName" value="TheatreService"/>
+     	<property name="wsdl" value="http://127.0.0.1:8080/theatre/TheatreService?wsdl"/>
+     	<property name="custom-handlers" value="com.arjuna.mw.wst11.client.JaxWSHeaderContextProcessor"/>
+     	<property name="tsParticipantEnrollment" value="true" />  
+    </action>
+    <action class="cz.vutbr.fit.xzelin15.dp.consumer.MyResponseAction" name="response-mapper">
+    <property name="exceptionMethod" value="exceptionHandler"/>
+    </action>
+   </actions>
+  </service>
+  
+  
+ </services>
+</jbossesb>
