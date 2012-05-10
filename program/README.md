@@ -1,7 +1,7 @@
 Demonstrační aplikace
 ====================
 
-Demonstrační aplikace je vytvořena ze součástí XTS demo aplikace. Převzaty jsou webové služby a grafický návrh webové aplikace
+Demonstrační aplikace je vytvořena ze součástí XTS demo aplikace. Převzaty jsou webové služby a grafický návrh webové aplikace. Aplikace byla vytvořena s JBoss AS 6.1.0 a ESB 4.10
 
 Web klient
 ---------------------
