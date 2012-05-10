@@ -1,0 +1,510 @@
+%=========================================================================
+% (c) Michal Bidlo, Bohuslav Køena, 2008
+
+\chapter{Úvod}
+
+
+
+ Tato práce se zabývá  projektem JBoss ESB od firmy RedHat. JBoss ESB je projekt, který se pou¾ívá pøi propojování více aplikací do jednoho fungujícího celku. Tomuto procesu sluèování se øíká systémová integrace. Pøi systémové integraci se sluèují aplikace s rùznými komunikaèními rozhraními a technologiemi, kdy tyto aplikace mohou být geograficky oddìleny. Systémová integrace slou¾í k restrukturalizaci podnikových aplikací. Pøedev¹ím slou¾í ke zvý¹ení efektivity jednotlivých aplikací, a tím zvý¹ením zisku celé spoleènosti. Pøi vyu¾ití více aplikací je nìkdy potøeba zpracování více operaci z rùzných aplikací tak, aby pøi chybì nedo¹lo ke ztrátì dat nebo podobným bezpeènostním incidentùm. K tomuto úèelu je mo¾no vyu¾ít transakèní zpracování. Transakce ze své podstaty nabízejí provedení jedné èi více operací bezpeèným zpùsobem. To znamená, ¾e se transakce úspì¹nì provede nebo pøi výskytu chyby vrátí ji¾ provedené zmìny do pùvodního stavu. Pokud jsou dílèí operace transakce provádìny na fyzicky oddìlených 
+systémech, jedná se o distribuovanou transakci, která vy¾aduje koordinaèní mechanizmus. Koordinaèní mechanizmus distribuované transakce zabezpeèuje dodr¾ení správného postupu pøi provedení dílèích operací. 
+
+Hlavní cíl této práce je navr¾ení a realizace koordinaèního mechanizmu, který umo¾ní vytvoøit distribuovanou transakci pomocí JBoss ESB. Pro vytvoøení mechanizmu budou pou¾ity nìkteré specifikace, kterými se zabývá projekt JBoss Transactions. Dal¹ími cíli této práce jsou testování a demonstrace vytvoøeného koordinaèního mechanizmu na praktické aplikaci. Dùle¾itou èásti této práce bude také objasnìní pojmù souvisejících s vytvoøením koordinaèního mechanizmu.
+ 
+Jako první jsou popsány základy architektury orientované na slu¾by \ref{SOA} a událostmi øízené architektury. Dále jsou objasnìny obecné základy transakèního zpracování \ref{trans}. Celá práce se zamìøuje na platformu programovacího jazyka Java a související pøístupy k transakcím a podnikovému prostøedí \ref{java}.
+
+Dal¹í èást práce se zamìøí na JBoss produkty, které budou nebo mohou být vyu¾ity v rámci práce. Bude popsána implementace podnikové sbìrnice slu¾eb od JBoos a specifikace JTA a WS-TX \ref{JTA}, které také jsou implementovány v JBoss a je mo¾né je vyu¾ít k vytvoøení koordinaèního mechanizmu. Tato èást práce rovnì¾ zahrnuje analýzu ji¾ implementovaných mechanizmù od jiných výrobcù.
+
+Tøetí èást obsahuje návrh implementace vlastního mechanizmu \ref{NAVRH}. Tato èást také obsahuje návrh testovací aplikace, která bude pou¾ita k testování a demonstraci vytvoøeného mechanizmu koordinace \ref{fig:mech}. 
+
+V dal¹í èásti \ref{IMPL} je popsána implementace testovací aplikace, která je zalo¾ena na praktickém pøíkladu. V poslední èásti \ref{ZAVER} je celá práce zhodnocena jsou diskutovány dal¹í mo¾nosti distribuovaných transakcí, zvlá¹tì pak pou¾ití specifikace JTS.
+
+
+
+\chapter{Základní pojmy}
+V této kapitole je popsána vìt¹ina dùle¾itých pojmù a zkratek, které se vyskytují dále v práci nebo jsou dùle¾ité pro objasnìní nìkterého z pou¾itých principù. Nejdøíve budou popsány dvì základní architektury, kterých týká celá tato práce. Dále budou popsány principy transakcí a jejich roz¹íøení na distribuované systémy. V poslední èásti základních pojmù jsou popsány souèásti platformy programovacího jazyka Java.
+
+
+\subsubsection*{HTML}
+HTML je zkratka pro Hypertext Markup Language \cite{HTML}, co¾ je znaèkovací jazyk pro vytváøení strukturovaných dokumentù na webu. HTML umo¾òuje vkládat sémantické znaèky, které jsou zpravidla párové. Mezi páry znaèek tzv. tagù je umístìn text, který je na základì znaèek interpretován webovým prohlí¾eèem
+
+\subsubsection*{HTTP}
+HTTP je zkratka pro Hypertext Transfer Protocol \cite{HTTP}. Je to protokol pro výmìnu hypertextových dokumentù ve formátu HTML. Výmìna dokumentù probíhá formou dotaz-odpovìï. 
+
+\subsubsection*{XML}
+XML je zkratka pro Extensible Markup Language \cite{XML}. Je to obecný znaèkovací jazyk, kterým je mo¾no vytváøet konkrétní znaèkovací jazyky. Pou¾ívá se pro pøená¹ení dat mezi webovými aplikacemi a vytváøení dokumentù. Pøi vytváøení dokumentù se pomocí znaèek oznaèuje význam textu, co¾ hraje velkou roli napø. pøi vyhledávání informací v dokumentu.
+
+\subsubsection*{SOAP} 
+SOAP je pùvodnì zkratka pro Simple Object Acsess Protocol, ale dnes se pou¾ívá pouze SOAP jako samostatný pojem \cite{SOAP}. Specifikuje protokol pro výmìnu strukturovaných a typovaných informací v decentralizovaných a distribuovaných sítích. Pou¾ívá XML pro definování sady funkcí pro vytváøení a výmìnu zpráv nad rùznými podpùrnými protokoly. SOAP byl vyvinut tak, aby byl nezávislý na transportních protokolech. 
+
+
+\subsubsection*{Volnì svázaný systém}
+\label{LC}Volnì svázané (loosely coupled)\cite{SOA} systémy obsahují na sobì nezávislé komponenty, které spolu komunikují a tak vytváøejí po¾adovaný systém. Nezávislost tìchto komponent spoèívá v mo¾nosti jejich obmìny. Ve volnì svázaném systému se mohou jednotlivé komponenty uvnitø mìnit(verze, implementace, atd.) ani¾ by to negativnì zasáhlo daný systém.
+
+\subsubsection*{Tìsnì svázaný systém} 
+ Tìsnì svázané (tightly coupled)\cite{SOA} systémy obsahují na sobì závislé komponenty, jejich¾ implementace je spojuje dohromady. V tìsnì vázaných systémech si nemù¾eme dovolit mìnit(implementace, verze, atd.) pouze jednu komponentu, ani¾ by to mìlo negativní následky na chod ostatních komponent nebo systému jako celku.
+
+
+ 
+\subsubsection*{Webové slu¾by}
+Webová slu¾ba je softwarový systém vytvoøen k podpoøe interakce mezi uzly sítì\cite{JAX-WS}. Má rozhraní popsané strojovì zpracovatelným formátem. Ostatní systémy komunikují s webovými slu¾bami zpùsobem pøedepsaným v popisu za pou¾ití SOAP zpráv zalo¾ených na XML, které jsou pøená¹eny pomocí protokolu HTTP za pou¾ití serializace XML ve spojení s ostatními webovými standardy. Pro webové slu¾by byla vytvoøena øada specifikací, které mají ve svém názvu prefix WS-. Je mo¾né se setkat s oznaèením skupina specifikací WS-*.
+
+\subsubsection*{Middleware} 
+V distribuovaných systémech se jedná o vrstvu, která le¾í mezi operaèním systémem a aplikací na ka¾dé stranì systému. Hlavním úkolem middleware je skrytí distribuovanosti a rùznorodosti jednotlivých èástí systému.\cite{Middleware}
+
+\subsubsection*{Otevøený software}
+Otevøený software (open-source software)\cite{OSI} je software s otevøeným zdrojovým kódem. Otevøenost znamená mo¾nost zdrojový kód vyu¾ívat pøi splnìní urèitých podmínek.
+
+
+
+
+%co je to soa, SOAP konstrukce zpravy a handlery, business activity a LRA, systemova integrace a ESB, proc soa a transakce
+\section{Architektura orientovaná na slu¾by}
+Architektura orientovaná na slu¾by(Services oriented architecture, SOA) \cite{SOA} \label{SOA} je sada principù a postupù pro návrh a vývoj softwaru. SOA se zamìøuje na pøesnì definované softwarové komponenty (èásti poèítaèových systému, datové struktury, apod.), které mohou být pou¾ity pro vícekrát, pro více úèelù a v kontextu SOA sem jim øíká slu¾by. Nyní si si uká¾eme hlavní principy a postupy, které se pou¾ívají pøi vytváøení slu¾eb v rámci SOA.
+
+\subsubsection*{Zapouzdøení operace}
+Pøi vytváøení systému obsahujících slu¾by, rozsah zapouzdøení mù¾e být men¹í i vìt¹í. Slu¾ba mù¾e zapouzdøovat jednu operaci v rámci systému nebo operaci, která reprezentuje celý systém.
+
+\subsubsection*{Vztah mezi slu¾bami}
+Jednotlivé slu¾by mohou být vyu¾ívány jinými slu¾bami nebo programy. Aby mohly slu¾by a programy mezi sebou komunikovat, musí o sobì vìdìt. Toto povìdomí je realizováno pomocí popisu slu¾by. V popisu slu¾by je uveden název slu¾by a druh dat, které slu¾ba oèekává a vrací.
+
+\subsubsection*{Komunikace mezi slu¾bami}
+Slu¾by komunikují pomocí zpráv. Jakmile je zpráva odeslána, slu¾ba nad ní ztrácí kontrolu. Podle SOA by mìla být zpráva nezávislou komunikaèní jednotkou, a tak zastávat stejnou pozici pøi komunikaci jako slu¾ba. Jinými slovy to znamená, ¾e zpráva si sama urèí slu¾bu, ke které bude doruèena. Abychom toho dosáhli, je nutné vybavit zprávu patøiènou inteligencí.
+
+
+\noindent Jedním z mo¾ných pøístupù SOA, kterým lze SOA implementovat, jsou webové slu¾by. Nutno poznamenat, ¾e ne v¹echny systémy implementované pomocí webových slu¾eb splòují koncept SOA.
+
+\subsubsection*{SOA pomocí webových slu¾eb}
+Co jsou to webové slu¾by jsme si popsali ji¾ døíve. Nyní se podíváme na jejich strukturu a jak pomocí nich lze implementovat principy SOA.
+
+Zapouzdøení operace do slu¾by je zde realizováno právì pomocí webové slu¾by. Popis slu¾by lze realizovat pomocí jazyka pro popis webových slu¾eb (WSDL, Web Service Definition Language). Komunikace je realizována pomocí SOAP protokolu. SOA pomocí webových slu¾eb obsahuje 3 role :
+
+
+
+\begin{itemize}
+\item {\bf Poskytovatel slu¾by - Service provider}\\
+Je zodpovìdný za popis slu¾by a její spu¹tìní na serveru. Pak je slu¾ba dostupná ze sítì a je mo¾no zaregistrovat její popis v registrech, kde bude k nalezení pro ¾adatele o slu¾bu. Tuto roli lze pøipodobnit k serveru v architektuøe klient-server.
+\item{\bf ®adatel o slu¾bu - Service requester }\\
+Vyhledá po¾adovanou slu¾bu v jednom nebo více registrech. Po nalezení popisu dané slu¾by se ¾adatel spojí se slu¾bou u poskytovatele a mù¾e ji pou¾ívat. Tuto roli lze pøipodobnit ke klientovi v architektuøe klient-server.
+\item{\bf Registr slu¾by - Service registry}\\
+Registr vystavuje popisy slu¾eb dostupných od poskytovatelù pro ¾adatele, kteøí v tìchto registrech vyhledávají po¾adované slu¾by. Jakmile je jednou slu¾ba v registru nalezena, není ji¾ tato role potøebná.
+\\\\
+
+\end{itemize}
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[bb= 0mm 195mm 150mm 294mm]{pic/soa.pdf}
+\caption{Model SOA pomocí webových slu¾eb.}
+\end{center}
+\end{figure}
+\noindent Tyto role mohou hrát jakékoliv programy nebo uzly v síti. Webové slu¾by také obsahuje tøi operace, které definují vztahy mezi jednotlivými rolemi:
+\begin{itemize}
+\item{\bf Zveøejnìní }\\
+Je vztah operace mezi registrem slu¾eb a poskytovatelem, kdy poskytovatel zveøejní popis slu¾by v registru, a tak ho zpøístupní ¾adatelùm. Konkretní mechanizmus zveøejnìní závisí na implementaci registru. V urèitých pøípadech roli registru pøejímá sama sí», kdy je popis slu¾by zveøejnìn pøímo v pøístupné èásti souborového systému na serveru.
+\item{\bf Nalezení }\\
+®adatel definuje vlastnosti transakce a podle nich je vyhledána slu¾ba v registrech. Výsledkem hledání je seznam slu¾eb, které odpovídají kriteriím. Nejjednodu¹¹í vyhledávací dotaz je HTTP GET\footnote{ Hypertext transfer protokol - protokol pro pøená¹ení hypertextových HTML dokumentù \\ GET - jedna z metod HTTP pro získání webové stránky klientem ze serveru} bez parametrù, který v¾dy vrátí v¹echny slu¾by, které jsou k dispozici. Pak je na ¾adateli, aby vybral správnou slu¾bu. Pro komplexní registraci a vyhledání slu¾eb se pou¾ívá standardu pro univerzální popis, vyhledání a integraci(UDDI, Universal descrition, discovery and integration). 
+\item{\bf Spojení }\\
+Ustanovuje vztah klient-server mezi ¾adatelem o slu¾bu a poskytovatelem. Tento vztah mù¾e být dynamický, kdy mohou být za bìhu vybírány jiné implementace dané slu¾by daných kriterii. Také mù¾e být statický, kdy programátor pøímo implementuje zpùsob volání dané slu¾by.
+\end{itemize}
+
+\subsubsection*{SOAP zpráva}
+Jeliko¾ slu¾by mezi sebou komunikují pomocí zpráv, je nutné, aby zprávy mìly jednotný formát a slu¾by pou¾ívaly stejný transportní protokol. Formát zprávy musí být flexibilní a roz¹íøitelný. Z obrázku \ref{fig:SOAPMess} je patrné, ¾e SOAP zpráva se skládá ze 4 èástí:
+\begin{itemize}
+ \item {\bf Obálka }\\ 
+ Jak ji¾ název èásti napovídá, obálka se dá charakterizovat jako kontejner, který volitelnì obsahuje hlavièku a povinnì musí obsahovat tìlo zprávy. 
+ \item {\bf Hlavièka}\\ 
+ K dosa¾ení zmínìné inteligence zprávy se vyu¾ívá obsahu hlavièky SOAP zprávy. Obsah je slo¾en z jednotlivých blokù, které mohou nést rùzné druhy informace související s doruèováním zprávy, zpracování tìla zpráv, bezpeèností apod. Sémantika jednotlivých blokù není v SOAP specifikována. Ka¾dý blok mù¾e mít rozdílný význam, a tedy i specifikaci. 
+ \item {\bf Tìlo}\\ 
+  Tìlo zprávy obsahuje odesílaná data, které jsou ve formátu XML. V pøípadì potøeby mù¾e zpráva obsahovat informaci o chybì na stranì pøíjemce. Zpráva s informací o chybì je pak doruèena zpìt odesilateli. 
+\item {\bf Pøílohy}\\
+SOAP pøíloha umo¾òuje posílat zejména data, která nelze popsat XML dokumentem. Obecnì se jedná o binární data (multimédia, dokumenty, apod.).
+\end{itemize}
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=1, bb= 0.0mm 230.0mm 130mm 294mmm]{pic/SOAPZprava.pdf}
+\caption{Obecný formát SOAP zprávy.}
+\label{fig:SOAPMess}
+\end{center}
+\end{figure}
+
+
+\subsubsection*{SOAP obslu¾né rutiny}
+SOAP obslu¾né rutiny (SOAP handlers)\cite{JAX-WS} mohou zpracovávat zprávu po pøíchodu a pøed odchodem zprávy. Jeliko¾ se v hlavièce zprávy nacházejí rùzné informace(zpùsob zpracování tìla zprávy, bezpeènostní kontext, transakèní kontext, apod.), které je potøeba zpracovat døíve ne¾ je slu¾ba spu¹tìna, zpráva je nejdøíve zachycena tìmito rutinami a ty vykonají pøíslu¹né operace pøed spu¹tìním slu¾by. SOAP obslu¾né rutiny se mohou nacházet na klientské stranì i na koncové stranì slu¾eb.
+
+Na klientské stranì zpravidla pøidávají informace (bloky hlavièky) do zprávy. Na koncové stranì slu¾eb ètou, pøípadnì odstraòují informace ze zprávy a vykonávají patøièné operace. Obslu¾né rutiny nemusejí být pøítomny vùbec nebo jich mu¾e být i více najednou.
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.8, bb= 0.0mm 220.0mm 210mm 294mmm]{pic/SOAPhandler.pdf}
+\caption{Pou¾ití SOAP obslu¾né rutiny.}
+\label{fig:HANDLER}
+\end{center}
+\end{figure}
+\newpage
+
+
+\section{Událostmi øízená architektura}
+Událostmi øízená architektura (EDA, Event-Driven Architecture)\cite{EDA} je dal¹í stupeò evoluce SOA\footnote{EDA nenahrazuje koncept SOA, pouze ho roz¹iøuje o dal¹í mo¾nosti.}. Také je mo¾né se setkat s pojmem událostmi øízená SOA (Event-driven SOA). EDA nabízí vy¹¹í úroveò abstrakce oproti SOA. Stále se jedná o zprávami komunikující architekturu, jen¾ propojuje aplikace do volnì vázaných systémù. Má v¹ak nìkolik odli¹ností oproti SOA, které nabízejí dal¹í vyu¾ití. Hlavní rozdíly oproti SOA:
+
+\subsubsection*{Vztah mezi slu¾bami}
+SOA vy¾aduje, aby jednotlivé slu¾by mìly o sobì povìdomí pomocí zveøejnìní jejich popisu. Toto v EDA ji¾ není tøeba a slu¾by mezi sebou mohou komunikovat ani¾ by znaly popis cílových slu¾eb. Aby této vlastnosti bylo dosa¾eno je nutný pøítomen mechanizmus pro manipulaci se zprávou, který ji transformuje bìhem její cesty od odesilatele k pøíjemci.
+\subsubsection*{Komunikace mezi slu¾bami}
+SOA je vhodná pro synchronní charakter aplikace typu dotaz/odpovìï, kde je mo¾no jednu stranu oznaèit za klient a druhou za server. EDA je vhodná pro asynchronní dlouhotrvající procesy, kde mù¾e existovat více odesilatelù a více pøíjemcù (komunikace many-to-many). Tato vlastnost je umo¾nìna díky øízení pomocí událostí, kdy událost v kontextu EDA je mo¾no charakterizovat jako významnou zmìnu stavu objektu (auto je na prodej $\rightarrow $ auto je prodáno). 
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.7]{pic/SOA.png}
+\caption{Architektura orientovaná na slu¾by. \cite{EDA} }
+\includegraphics[scale=0.7]{pic/EDA.png}
+\caption{Událostmi øízená architektura. P1-4 znaèí rùzné komunikaèní protokoly. \cite{EDA} }
+\label{fig:EDA}
+\end{center}
+\end{figure}
+
+
+\subsubsection*{Model podnikové sbìrnice slu¾eb}
+Podniková sbìrnice slu¾eb (ESB, Enterprise Service Bus) \cite{ESB} je model, kterým je mo¾no vytvoøit systém reprezentující architekturu EDA. Základním úkolem ESB je propojit rùzné druhy aplikací (databáze, informaèní systémy, data, souborové systémy, webové slu¾by) vytvoøené rùznými technologiemi (Java, .NET, C/C++). Propojování aplikací, systémových komponent a rùzných subsystémù se v podnikové sféøe nazývá {\it systémová integrace}. Jeliko¾ je ESB pouze model, jeho implementaci mají v rukou vývojáøi. V pøípadì ESB se jedná o velice komplexní aplikaci, proto implementaci tohoto modelu nabízejí rùzní výrobci jako produkt (IBM, Oracle, RedHat aj.), kteøí dosahují jednotlivých po¾adavkù EDA rùznými technologiemi. 
+
+
+
+
+
+
+
+\section{Transakce}
+
+%definice,priklad transakce,ACID vlastnosti na prikladu,
+\label{trans}Byly popsány základní architektury a modely, kterými se tato práce bude zabývat. Nyní budou popsány principy transakèního zpracování, které budou souviset s vytvoøením mechanizmu pro koordinaci transakcí v ESB.
+Transakce je skupina operací, která se u¾ivateli jeví jako jedna samostatná operace\cite{transaction}. Operace v rámci transakce se musí provést v¹echny úspì¹nì nebo ¾ádná. Síla transakce spoèívá ve vykonání operací ve dvou fázích. V první fázi jsou výsledky jednotlivých operací transakce ulo¾eny jako doèasný záznam mimo cíl a v druhé fázi jsou po výzvì transakce výsledky z toho záznamu pøesunuty do cíle a doèasné záznamy jsou zru¹eny. Pro zmínìnou výzvu transakce se pou¾ívá výraz {\it commit}. Pokud dojde bìhem první fáze transakce k chybì, jsou po výzvì transakce doèasné výsledky zru¹eny. Pøi ru¹ení výsledkù se pro tuto výzvu pou¾ívá výraz {\it rollback}. Po pøedstavení transakcí si øekneme proè transakce vyu¾ít. 
+
+Transakce pøevádí systém z jednoho konzistentního stavu\footnote{Konzistentní stav systému neporu¹uje ¾ádné z jeho integritních pravidel} do jiného konzistentního stavu. Jeliko¾ konkretní implementace pojmù konzistentní stav a integritní omezení se napøíè rùznými systémy (databázový, souborový, apod.) li¹í, uká¾eme si na pøíkladu základní princip tìchto pojmù a zároveò si pøedstavíme dùle¾ité vlastnosti transakcí.
+\\\\\\
+Mìjme dva bankovní úèty A a B. Na ka¾dém z nich je 50 korun, pøièem¾ musí platit A + B = 100 korun.
+\\\\
+Zde máme integritní omezení  A + B = 100 \\\\
+Konzistence systému je poru¹ena pokud souèet obou úètù není roven 100 korunám a je kontrolována po ka¾dé manipulaci s úèty. Zde máme nìkteré ukázkové scénáøe manipulací s úèty:
+
+\begin{itemize}
+\item {\bf Pøevod z jednoho úètu na druhý.}\\
+      Pøevod je slo¾en ze dvou operací, výbìr z úètu A a vklad na úèet B. Pokud by tyto dvì operace byly provedeny oddìlenì, hrozí nebezpeèí ztráty penìz "nìkde" v systému napø. díky výpadku proudu pøi jedné z operací. Transakce zaruèuje provedení obou operací nebo vùbec ¾ádné, proto nehrozí ztráta penìz bìhem pøevodu. Tato vlastnost se nazývá atomicita. 
+
+\item {\bf Souèasnì provádìné transakce.}\\
+      Dva lidé souèasnì pøistupují k jednotlivým úètùm a provedou souèasnì pøevod z úètu A na úèet B a obrácenì. Nyní se dvì transakce pokusí manipulovat se stejnými daty. V tomto pøípadì musí jedna transakce poèkat na dokonèení druhé. Pokud by ke stejným datùm pøistupovaly obì transakce souèasnì a jedna by pøi první operaci selhala, hrozí poru¹ení konzistence systému. Tomuto oddìlení transakcí se øíká izolace.
+
+\item {\bf Výpadek systému.}\\ 
+      Ka¾dé úspì¹né dokonèení transakce je trvale ulo¾eno. Pokud nastane výpadek systému, tak po jeho obnovení je výsledek transakce opìt dostupný. Tato vlastnost transakce se nazývá trvalost. Této vlastnosti nelze absolutnì dosáhnout, proto¾e existují i extrémní chyby, napø. havárie pevného disku.
+\end{itemize}
+Transakce s vý¹e uvedenými vlastnostmi atomicita, konzistence, izolace a trvalost (ACID, Atomicity, Consistency, Isolation, Durability) \label{ACID} se nazývají atomické transakce nebo je mo¾né se setkat s pojmem ACID transakce. Existují v¹ak transakce, které nemusejí v¹echny tyto vlastnosti zaruèovat, proto¾e pro daný charakter aplikace nejsou striktní ACID vlastnosti vhodné. Tento druh transakcí se vyu¾ívá pøevá¾nì v distribuovaných systémech a budou zmínìny pozdìji v textu.
+
+%rozdil mezi lokalni a distribuovanou transakci, soucasti DT - obecne, konkretne, 2PC protokol
+\section{Distribuované transakce}
+Do této doby jsme mluvili o lokálních transakcích v rámci jednoho systému. Jeliko¾ se tato práce zabývá hlavnì distribuovanými (globálními) transakcemi, vysvìtlíme si v èem spoèívají rozdíly mezi lokální a distribuovanou  transakcí. Distribuovaná transakce\label{dist} je rozprostøena mezi nìkolik systémù a ty mohou nebo nemusejí být pøímo fyzicky oddìleny. Aby byla transakce distribuovaná, postaèuje rozlo¾ení jednotlivých operací v rámci transakce mezi rùzné systémy (databázový, souborový, logovací apod.) v rámci jednoho fyzického stroje. V kontextu distribuovaných transakcí se jednotlivé systémy nazývají {\it transakèní zdroje}.
+
+Pro zaruèení ACID vlastností pøi distribuované transakci nepostaèují pouze výzvy commit a rollback. Celá transakce se stává slo¾itìj¹í, proto¾e je nutné transakci synchronizovat a koordinovat. Koordinaci transakce má na starosti tzv. {\it transakèní mana¾er}. Prozatím si pøedstavme transakèní mana¾er jako komponentu, která je zodpovìdná za kontrolu transakce, a pozdìji v textu bude popsána jeho funkce detailnìji. Transakèní mana¾er potøebuje jistým zpùsobem komunikovat s rùznými systémy, k èemu¾ je potøeba jednotné rozhraní. Jednotné rozhraní pro kontrolu transakce poskytuje komponenta {\it Mana¾er transakèního zdroje}, která zapouzdøuje transakèní zdroj\cite{transaction}. 
+
+Bylo zmínìno nìkolik komponent, které jsou potøebné k realizaci distribuované transakce. Nyní se na jednotlivé komponenty podíváme detailnìji a uká¾eme si zjednodu¹ený prùbìh distribuované transakce .
+
+
+\subsubsection*{Mana¾er transakèního zdroje}
+Tato komponenta roz¹iøuje daný transakèní zdroj o funkce potøebné k transakènímu zpracování. Je zodpovìdná za komunikaci s transakèním mana¾erem i s transakèním zdrojem, který roz¹iøuje. Mana¾er transakèního zdroje tedy vytváøí vrstvu mezi transakèním mana¾erem a transakèním zdrojem. Zaji¹»uje ukládání doèasných výsledkù transakce tak, aby bylo mo¾né pracovat s transakèním zdrojem ve dvou fázích. Dále mana¾er transakèního zdroje roz¹iøuje transakèní zdroj o funkce obnovy po výpadku.
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[bb= 0mm 210mm 110mm 294mm,scale=0.9]{pic/2pc_simple.pdf}
+\caption{Obecnì znázornìný Two-phase commit protokol. \cite{transaction} }
+\label{fig:2PC}
+\end{center}
+\end{figure}
+
+\subsubsection*{Transakèní mana¾er}
+Transakèní mana¾er je komponenta zodpovìdná za koordinaci distribuované transakce. Èasto je oznaèován také jako koordinátor. Jak bylo popsáno, lokální transakce jsou provádìny ve dvou fázích. U distribuovaných transakcí je situace velmi podobná. S tím rozdílem, ¾e komunikace se mù¾e odehrávat na fyzicky oddìlených strojích. 
+
+Zde ji¾ je tøeba pou¾ít protokol, který zajistí správnou komunikaci s jednotlivými systémy a dvoufázové provedení transakce. Nejèastìji pou¾ívaný protokol se nazývá dvoufázový commit protokol (2PC protokol, two-phase commit protocol). 
+
+Av¹ak provedení transakce není jediný úkol transakèního mana¾era. Jak je na obrázku \ref{fig:DTRANS} zjednodu¹eného prùbìhu distribuované transakce patrné, transakèní mana¾er nejdøíve zapoène transakci (Aktivace), následnì se u nìj registrují jednotliví mana¾eøi zdrojù (Registrace). Tìsnì po registraci dochází na stranì transakèního zdroje k zablokování transakèního zdroje, provedení operace a ulo¾ení výsledkù do doèasného úlo¾i¹tì. Transakèní zdroj je nutné zablokovat, aby nedo¹lo k manipulaci jinou transakcí. Teprve potom dochází k dokonèení transakce pomocí 2PC protokolu.
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[bb= 0mm 180mm 140mm 294mm]{pic/DTrans.pdf}
+\caption{Zjednodu¹ený prùbìh distribuované transakce. }
+\label{fig:DTRANS}
+\end{center}
+\end{figure}
+
+
+
+\subsection*{2PC protokol}
+Je hlavním nástrojem pro zaruèení atomického provedení distribuované transakce. Jeho úkolem je zajistit kooperaci v¹ech zúèastnìných systémù v transakci. Jak u¾ z názvu vypovídá, protokol má dvì fáze. Existují rùzné modifikace tohoto protokolu s více fázemi, které slou¾í k vylep¹ení buï rychlosti zpracování nebo robustnosti transakce. Dvoufázový protokol je v¹ak nejpou¾ívanìj¹í.
+\begin{itemize}
+ \item {\bf Fáze 1 }\\
+  Bìhem fáze 1 se koordinátor(C na obrázku \ref{fig:2PC}) pokusí komunikovat se v¹emi transakèními mana¾ery(A, B) transakce a zjistit, zda-li jednotlivé transakèní zdroje jsou pøipraveny k dokonèení transakce èi nikoliv. 
+
+  Jakmile mana¾er transakèního zdroje dostane zprávu od koordinátora pøi fázi 1, vyhodnotí svou situaci a ulo¾í si rozhodnutí o provedení nebo zru¹ení operace. Ulo¾ení rozhodnutí se provádí pro pøípad neoèekávaného výpadku transakèního zdroje a následné obnovì konzistentního stavu.  Ka¾dý mana¾er transakèního zdroje, který ode¹le kladnou odpovìï, musí ponechat transakèní zdroj zablokovaný, dokud neobdr¾í zprávu o fázi 2 od koordinátora.
+  
+  Pokud bìhem kterékoliv operace do¹lo k chybì, je tato chyba oznámena koordinátorovi a celá transakce je zru¹ena (rollback). Pøi ru¹ení transakce koordinátor uvìdomí v¹echny mana¾ery transakèních zdrojù, aby uvedli zmìny do pùvodního stavu pøed zapoèetím transakce. 	
+ \item {\bf Fáze 2 }\\
+  V této fázi koordinátor pouze vyzve v¹echny mana¾ery transakèních zdrojù k dokonèení transakce (commit). Na stranì transakèního zdroje dochází k pøesunutí výsledkù operací do permanentního stavu a uvolnìní zdroje.
+\end{itemize}
+
+
+
+Pro první fázi protokolu není nutné odesílat zprávy úèastníkùm sekvenènì. Je mo¾né a kvùli efektivitì i ¾ádoucí kontaktovat úèastníky paralelnì.
+
+\subsubsection*{Transakèní kontext}
+Jeliko¾ jsou transakce distribuovány pøes nìkolik domén (transakèní mana¾er, mana¾er transakèního zdroje, klientská aplikace), musí mezi nimi docházet k výmìnì urèitých informací. Tìmto informacím se obecnì øíká kontext. Kontext je propagován v distribuovaném prostøedí, aby zajistil potøebný tok informací mezi danými doménami. Kontext vet¹inou obsahuje identifikátor transakce, který je v dané transakci unikátní. Adresu nebo umístìní koordinátora, aby se mana¾eøi transakèních zdrojù mohli registrovat. Dal¹í specifické informace, napøíklad typ provádìcího protokolu ( Two-phase, Three-phase apod.). Transakèní systémy musejí obsahovat rozhraní (napø. SOAP handler \ref{fig:HANDLER}), které pøidává kontext do odchozí zprávy a odebírá kontext z pøíchozí zprávy viz obrázek \ref{fig:kontext}.
+
+%\newpage
+%\begin{comment}
+\begin{figure}[h]
+
+\begin{center}
+ \includegraphics[bb= 0mm 220mm 150mm 294mm]{pic/kontext.pdf}
+\caption{Pøená¹ení transakèního kontextu. \cite{transaction}}
+\label{fig:kontext}
+\end{center}
+\end{figure}
+%\end{comment}
+
+
+
+
+
+%co je Java EE, jednotlive vrstvy, hlavni technologie v EE
+\section{Platforma jazyka Java }
+\label{java}
+\subsubsection*{Java Enterprise edition}
+Platforma Java 	poskytuje více druhù pou¾ití jazyka Java. Tato práce se zamìøuje na pou¾ití podniková edice Java platformy (Java EE, Java Enterprise edition)\cite{Java}. Existuje více èástí platformy Java, které jsou urèené pro rùzné pou¾ití. Java EE se pou¾ívá pro vytváøení rozsáhlých podnikových aplikací a informaèních systémù. Základem Java EE je standardní edice jazyka Java (Java SE, Java Standard Edition), která se postupným vývojem roz¹íøila a musela být rozdìlena na více edici vèetnì Java EE.
+
+Aplikaèní logika Java EE je rozdìlena do komponent podle funkce. Jednotlivé komponenty jsou umístìny v nìkolika aplikaèních vrstvách:
+\begin{itemize}
+\item {\bf Klientská vrstva} - umístìna na stranì klienta\\
+Tato vrstva typicky obsahuje u¾ivatelské rozhraní pro ovládání cele aplikace.
+\item {\bf Webová vrstva} - umístìna na stranì Java EE serveru\\
+Na této vrstvì jsou umístìny komponenty vytváøející obsah, který je následnì odeslán klientovi.
+\item {\bf Business vrstva} - umístìna na stranì Java EE serveru\\
+Zde je implementována aplikaèní logika, která pøijímá vstupy od klienta, zpracovává je, pøípadnì je ulo¾í do databáze.
+\item {\bf Vrstva Podnikový informaèní systém(EIS)}\\
+Komponentami této vrstvy jsou databáze a podobné aplikace pro ukládání dat.
+\end{itemize}
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.5]{pic/JAVAEESTACK.png}
+\caption{Jednotlivé vrstvy Java EE architektury. \cite{Java} }
+\label{fig:JAVAEE}
+\end{center}
+\end{figure}
+
+\noindent Takto navr¾ené vícevrstvé aplikace je obtí¾né vytváøet, proto jsou komponenty vytváøeny tak, aby byly znovupou¾itelné. Pak je mnohem snadnìj¹í vytváøet slo¾ité aplikace. Ka¾dá komponenta musí být umístìna do kontejneru. Kontejner je rozhraní mezi komponentou a funkcemi ni¾¹í úrovnì, které jsou implementaènì závislé. Obecným kontejnerem je aplikaèní server, který zprostøedkovává slu¾by ostatním kontejnerùm a komponentám. Na aplikaèní server je mo¾né nasadit tzv. Enterprise JavaBeans (EJB)\footnote{EJB je  kontejner, vhodný pro implementaci aplikaèní logiky} a Web kontejner, do kterých lze umis»ovat patøièné komponenty. Dále existují klientský a applet kontejner, které jsou vhodné pro klientskou èást aplikace.
+
+Pro vytváøení vícevrstvých aplikací Java EE obsahuje velké mno¾ství technologii a jejich specifikací, které je mo¾no rozdìlit do nìkolika kategorii:
+
+\begin{itemize}
+ \item {\bf Webové slu¾by}\\
+	Zahrnuje specifikace technologii pro implementaci SOA pomocí webových slu¾eb. Napøíklad obsahuje specifikaci pro tvorbu webových slu¾eb zalo¾ených na XML (JAX-WS). JAX-WS je mo¾né vyu¾ít k tvorbì klientských aplikací a webových slu¾eb zalo¾ených na XML .  Mezi klienty a slu¾bami lze vytvoøit komunikaci zalo¾enou na zprávách nebo vzdálené volání procedur (RPC, Remote Procedure Call).
+ \item {\bf Webové aplikace}\\
+	Zde jsou uvedeny technologie pro tvorbu webových aplikací a podporu pro implementaci modelu model-view-controller(MVC). Významnou specifikací z této kategorie je JavaServer Pages (JSP), která se pou¾ívá k tvorbì dynamických webových stránek. Pou¾ívá se spoleènì se specifikací Java Servlet. Servlet je komponenta bì¾ící v rámci webového serveru. Pøijímá dotazy od klientù a generuje odpovìdi ve formì HTML dokumentu. JSP slou¾í k oddìlení u¾ivatelského rozhraní od aplikaèní logiky. Pomocí JSP se vytváøí HTML dokument s vnoøenými úseky Java kódu. 
+ \item {\bf Podnikové aplikace}\\
+	 V této kategorii jsou uvedeny technologie pro implementaci business logiky a rùzných podpùrných technologii. Pro vytváøení podnikových aplikací je vhodná specifikace Enterprise JavaBeans (EJB). Pomocí EJB jsou vytváøeny komponenty, které oddìlují aplikaèní logiku od prezentaèní vrstvy. Hlavní vlastnosti EJB komponent by mìla být znovupou¾itelnost. EJB komponenty je mo¾no vyu¾ít k zaji¹tìní bezpeènosti, transakèního zpracování nebo také k testování. Pro komunikaci mezi jednotlivými komponentami je vhodná specifikace Java Messaging Service (JMS). 
+ \item {\bf Správa a zabezpeèení }\\
+	 Obsahuje technologie pro monitorování a zabezpeèení vytvoøených aplikací. Pro tvorbu monitorovacích aplikací se pou¾ívá specifikace Java Management Extensions (JMX). JMX umo¾òuje vytváøet aplikace s webovým rozhraním, které slou¾í k monitorování a správì rùzných zaøízení, aplikací nebo sítí se slu¾bami. Aplikace v rámci JMX jsou vytváøeny pomocí Managed Bean (MBean) komponent, které zaji¹»ují spojení se sledovaným objektem.
+\end{itemize}
+
+
+
+
+
+
+
+
+\chapter{Projekty v rámci JBoss}
+JBoss je divize firmy Redhat, která se vìnuje vývoji nových technologii v oblasti open-source middleware \cite{ESB-MAN}. Tento projekt zalo¾il v roce 1999 Marc Fleury jako EJBoss (Enterprise Java Beans open-source software). V roce 2001 byl název zkrácen na nynìj¹í JBoss kvùli souvislostem s EJB od Sun Microsystems\footnote{dnes ji¾ Oracle}. Od roku 2006 do souèasnosti je JBoss souèástí firmy RedHat. JBoss je hlavnì známý kvùli svému aplikaènímu serveru, který se stal velmi populárním. Jboss se vìnuje i dal¹ím technologiím, ke kterým patøí i JBoss ESB a JBoss Transactions. V této èásti práce jsou JBoss ESB a JBoss Trsansactios popsány detailnìji, proto¾e souèásti tìchto projektù budou pozdìji pou¾ity pøi vytvoøení koordinaèního mechanizmu.
+
+%provider, sluzba ,listener, akce
+\section{Jboss ESB}
+Projekt JBoss ESB se zabývá systémovou integrací pomocí modelu ESB. ESB je aplikaèní sbìrnice, která má za úkol integrovat systémy zalo¾ené na rùzných technologiích. Základem my¹lenky ESB je oddìlení aplikaèní logiky od transportních mechanizmù, transformace dat a dal¹ích problémù, které nesouvisejí s aplikaèní logikou. Aplikaèní logika nebo celé systémy jsou zapouzdøeny do slu¾eb a ty mezi sebou komunikují pomocí zpráv. Zprávy mezi slu¾bami jsou pøená¹eny po sbìrnici, která je schopná je doruèovat, smìrovat, transformovat atd. Pøipojení jednotlivých technologii je mo¾no obecnì pøes Java Connector Architekture (JCA). Dále je mo¾no vyu¾ít protokoly JMS, HTTP, SOAP a dal¹í, viz dokumentace \cite{ESB-GUIDE}.
+
+Jboss ESB je vytvoøen jako modul pro Jboss aplikaèní server. Abychom mohli vytváøet integraèní aplikace,je potøeba tento modul nasadit\footnote{Nasazení není pouze nahrání modulu na aplikaèní server, ale zahrnuje i dal¹í úkony, které spojí modul s aplikaèním serverem} na aplikaèní server. Podobným zpùsobem se postupuje pøi tvorbì ESB aplikací. ESB aplikaci reprezentuje modul s pøíponou .esb,  který se pak nasadí na aplikaèní server. V pøípadì JBoss ESB modul pøedstavuje adresáø se specifikovanou strukturou, jeho¾ název musí obsahovat koncovku .esb. JBoss ESB aplikace mají dvì hlavní komponenty, zprostøedkovatele (Providers) a slu¾by (Services).
+
+
+
+\subsection*{Zprostøedkovatel}
+Zprostøedkovatel (Provider) je komponenta zodpovìdná za zprostøedkování transportních slu¾eb v rámci JBoss ESB. Zprostøedkovatel umo¾òuje vytvoøeným slu¾bám komunikovat mezi sebou nebo s externími slu¾bami. Právì pomocí zprostøedkovatelù je mo¾no pøipojit jednotlivé slu¾by k transportním mechanizmùm (napø. fronta). Pøi konfiguraci je transportnímu mechanizmu pøiøazen jednoznaèný identifikátor, pomocí kterého jej bude moci nìkterá ze slu¾eb najít v registrech\footnote{ JBoss ESB pou¾ívá UDDI registry k ukládání informací o slu¾bách, více v \cite{ESB-GUIDE} }. JBoss ESB podporuje komunikaci pomocí rùzných technologii (JMS, databáze, souborové systémy, apod.), aby bylo mo¾né pokrýt co nejvíce mo¾ností integrace. V JBoss ESB existují dva základní typy zprostøedkovatelù:
+ \begin{itemize}
+ \item {\bf Událostmi øízený zprostøedkovatel}  \\
+  První typ zprostøedkovatele pasivnì èeká na událost (napø. pøíchod zprávy). Slu¾ba je spu¹tìna jako reakce na událost.  
+ \item {\bf Zprostøedkovatel øízený naplánováním} \\
+  Druhý typ má zpracování události naplánován. Periodicky spou¹tí slu¾by, a tak zajistí zpracování zprávy. Tento druh je vhodný pro obsluhu systémù, které nejsou zalo¾ené na událostech. 
+\end{itemize}
+ 
+%hlavní úèel,
+
+\subsection*{Slu¾ba}
+V Jboss ESB je slu¾ba tvoøena tzv. {\it naslouchaèi} (listeners) a {\it akcemi} (actions). Pøi vyvolání slu¾by jsou akce v rámci jedné slu¾by postupnì vykonány v poøadí, ve kterém byly nadefinovány. Toto uspoøádání je pojmenováno zøetìzení akcí {\it action pipeline}. K tomu, aby mohly být akce zøetìzeny, musí být akce standardizovány a vykonat urèité funkce. Hlavní funkcí ka¾dé akce je zpracování zprávy, která oèekává zprávu a vrací zprávu zpìt. Jinými slovy, ka¾dá akce pøevezme zprávu, zpracuje ji a pøedá ji dal¹í akci. Díky tomuto mechanizmu mù¾eme pomocí jednotlivých akcí transformovat data ve zprávách, zprávy mù¾eme smìrovat do rùzných slu¾eb, mù¾eme vytváøet záznamy o transportovaných datech atd.
+
+Na obrázku \ref{fig:ESB-ACTION} lze vidìt pøíklad slu¾by, která pøijímá data pomocí HTTP. Po pøijetí dat, je vytvoøena vnitøní ESB zpráva, která zapouzdøí data a zpráva putuje zøetìzením akcí. Data jsou do zprávy ukládána asociativnì, tedy ka¾dá polo¾ka dat má svùj klíè. Pøi vytváøení jednotlivých akcí je nutno dát pozor, aby si pøi prùchodu zøetìzením jednotlivé akce neplánovitì nepøepisovaly data.   
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[bb= 0mm 245mm 110mm 294mm]{pic/akce.pdf}
+\caption{Zøetìzení akcí - slu¾ba. \cite{ESB-GUIDE}}
+\label{fig:ESB-ACTION}
+\end{center}
+\end{figure}
+
+\noindent Pro rychlej¹í vytváøení slu¾eb JBoss ESB disponuje pøipravenými akcemi (OOTB, Out Of The Box), které je staèí pouze nakonfigurovat. Také je mo¾né vytvoøit si úplnì vlastní akci v jazyce Java.  Abychom mohli vyu¾ívat transportní mechanizmy nakonfigurované pomocí zprostøedkovatelù, musíme slu¾bu propojit s pøipraveným transportním mechanizmem. To je mo¾né díky naslouchaèùm. V JBoss existují dva typy naslouchaèe:
+\begin{itemize}
+ \item {\bf Zpracující externí po¾adavky} (Gateway listener) \\
+ Pøijímá data od externích slu¾eb, které komunikují jiným zpùsobem ne¾ ESB zprávami. Po pøijetí dat od externí slu¾by zapouzdøí data do ESB zprávy a pøepo¹le jej naslouchaèi zpracující ESB zprávy.
+ \item {\bf Zpracující pouze ESB zprávy} (ESB-aware listner) \\
+ Pøijímá ESB zprávy odesílá jej do slu¾eb. Zpráva mù¾e pøijít od jiné slu¾by v rámci ESB nebo mù¾e pøijít od naslouchaè externích po¾adavkù, který transformoval data do ESB zprávy. 
+\end{itemize}
+
+\subsection*{ESB zpráva}
+Proto¾e zpráva je v JBoss ESB jediný komunikaèní prostøedek, uká¾eme si její strukturu a vlastnosti. JBoss ESB. 
+
+Slu¾by mohou komunikovat zpùsobem dotaz/odpovìï nebo jednosmìrnì. V prvním pøípadì po odeslání zprávy èeká odesilatel pøedem urèenou dobu na odpovìï. Je doporuèeno vytváøet komunikaci mezi slu¾bami jednosmìrnì, kdy dotaz a pøípadná odpovìï jsou na sobì nezávislé operace. Tento styl komunikace zvy¹uje odolnost vùèi chybám a naplòuje pøedpoklad volnì svázaného systému. 
+
+Slu¾by mohou komunikovat zpùsobem dotaz/odpovìï nebo jednosmìrnì. V prvním pøípadì po odeslání zprávy èeká odesilatel pøedem urèenou dobu na odpovìï. Je doporuèeno vytváøet komunikaci mezi slu¾bami jednosmìrnì, kdy dotaz a pøípadná odpovìï jsou na sobì nezávislé operace. Tento styl komunikace zvy¹uje odolnost vùèi chybám a naplòuje pøedpoklad volnì svázaného systému. 
+
+
+
+\begin{itemize}
+ \item {\bf Hlavièka} (Header)\\
+ Hlavièka obsahuje informace o smìrování a adresaci . Zde je také umístìn jednoznaèný identifikátor zprávy. Dále jsou zde umístìny informace, kam má zpráva putovat, pokud nastala chyba pøi zpracování.
+ \item {\bf Tìlo} (Body)\\
+Data jsou do tìla  implicitnì ukládány pod jednotným klíèem. Umístìní dat, resp. název klíèe, lze mìnit uvnitø akce.  Pro tìlo zprávy jsou vytvoøeny rozhraní pro manipulaci s textem, serializovatelným objektem, mapovaným objekt (klíè - serializovatelný objekt), bytovou sekvencí.
+ \item {\bf Pøíloha} (Attachment)\\
+ Pøíloha se pou¾ívá pro pøipojení dal¹ích typù dat. Dùvodem proè pou¾ít pøílohy mù¾e být pøehlednìj¹í struktura zprávy. 
+ \item {\bf Vlastnosti} (Properties) \\
+ Ve vlastnostech lze specifikovat ostatní informace ohlednì zprávy, které není vhodné umístit do ostatních polo¾ek.
+\end{itemize}
+
+\noindent Není doporuèeno pou¾ívat Pøílohy a Vlastnosti pøi implementaci, proto¾e v budoucnu  se bude jejich implementace mìnit.
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[bb= 0mm 245mm 110mm 294mm]{pic/ESBzprava.pdf}
+\caption{Struktura vnitøní ESB zprávy. \cite{ESB-GUIDE} }
+\label{fig:JAVAEE}
+\end{center}
+\end{figure}
+
+
+
+
+
+\section{JBoss Transactions I.}
+Jboss Transactions je projekt zabývající se implementací specifikací pro transakèní zpracování. V První èásti je popsána specifikace Java Transaction API (JTA)\label{JTA} a její implementace v rámci projektu JBoss Transactions. JTA je objektovì orientované mapování na XA specifikaci. XA specifikace je technický standard pro distribuované transakèní zpracování.
+
+ JTA je rozhraní k pou¾ití transakèního zpracování. Pro pou¾ití JTA je tøeba mít spu¹tìný modul transakèního mana¾era na aplikaèním serveru nebo je mo¾né instanci spustit samostatnì bez pou¾ití aplikaèního serveru. Dále v textu je pøedpokládáno, ¾e transakèní mana¾er je spu¹tìn v rámci aplikaèního serveru. Pro pou¾ití je tøeba lokalizovat instanci transakèního mana¾era v registrech pomocí rozhraní pro pojmenování a adresáøe (JNDI, Java Naming and Directory Interface). V rámci modulu transakèního mana¾era je spu¹tìno více slu¾eb (pro obnovu po pádu transakèního zdroje - Recovery Manager, pro ovládání transakce na klientské stranì - User Transaction, dal¹í viz dokumentace). Dùle¾itou slu¾bou pro tvorbu aplikací s transakèním zpracování je slu¾ba User Transaction. 
+
+Aby bylo mo¾né k transakci pøipojit rùzné druhy transakèních zdrojù, JTA dále poskytuje rozhraní pro komunikaci mezi transakèním mana¾erem a transakèním zdrojem (XAResource). Toto rozhraní musí daný transakèní zdroj implementovat, aby mohl komunikovat s transakèním mana¾erem.
+Nyní budou popsány hlavní rozhraní, které jsou nezbytné pro vytvoøení aplikace pou¾ívající JTA.
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.7]{pic/DTPModel.png}
+\caption{Model distribuovaného transakèního zpracování podle XA specifikace.\cite{xa-spec} }
+\label{fig:DTP}
+\end{center}
+\end{figure}
+
+\subsection*{Rozhraní UserTransaction} 
+Toto rozhraní slou¾í k ovládání lokální transakce. Obsahuje metody pro zahájení (begin()), provedení(commit()) a zru¹ení transakcí(rollback()). Pro pou¾ití transakèního zpracování je nejdøíve nutné zahájit transakci. Po zahájení transakce je tøeba navázat spojení s transakèním zdrojem. Po zapoèetí transakce se pøi navázání spojení automaticky transakèní zdroj registruje u transakèního mana¾era.
+
+
+\subsection*{Rozhraní XAResource} 
+Toto rozhraní definuje vztah mezi transakèním mana¾erem a úèastníky podle XA specifikace. Rozhraní je implementováno na stranì transakèního zdroje. Transakèní mana¾er vytváøí instanci tøídy XAResource pro ka¾dého úèastníka, kterého chce pøiøadit do transakce. Funkce  {\it start()} a {\it end()} slou¾í k pøipojení a odpojení transakèního zdroje k vytvoøené transakci . Transakèní mana¾er na konci transakce pomocí metod {\it prepare()}, {\it commit()} nebo {\it rollback()} vykoná 2PC protokol, aby dokonèil, pøípadnì zru¹il transakci.
+
+Distribuovanou transakci je také mo¾né vytvoøit bez úèasti transakèního mana¾era právì díky XAResource rozhraní. Pokud získáme instanci XAResource objektu, mù¾eme vyu¾ít funkce tohoto rozhraní a øídit transakci pøímo v aplikaci.
+
+
+\subsection*{Rozhraní TransactionManager} 
+Rozhraní transakèního mana¾era je velice podobné rozhraní UserTransaction. Navíc pouze obsahuje funkce pro pozastavení (suspend()) a obnovu (resume()) transakce.  JTA podporuje doèasné pozastavení a obnovení transakce, aby øídící vlákno mohlo vykonat nìjakou jinou netransakèní èinnost. Pro pozastavení transakce se pou¾ívá metoda {\it suspend()}, která vrátí  ukazatel na objekt transakce a pozastaví transakci. Operace pozastavení prakticky transakci nepøeru¹í, pouze pøeru¹í spojení transakce a vlákna. Takto je mo¾né, aby jiné vlákno mohlo obnovit transakci, kterou nepozastavilo. Toto je vhodné pokud je tøeba, aby více vláken pracovalo s jednou transakcí. 
+
+
+
+\newpage
+
+
+
+
+
+
+
+
+
+
+
+
+\section{JBoss Transactions II.}
+V druhé èásti jsou popsány specifikace pro transakèní zpracování pomocí webových slu¾eb. Webové slu¾by nabízejí øe¹ení jedné z nevýhod JTA a to je spolupráce mezi rùznými technologiemi. Dal¹í rozdíl oproti JTA je fakt, ¾e díky charakteru webových slu¾eb mù¾eme rozdìlit jednotlivé operace v transakcích na více virtuálních strojù. Tuto funkci JTA specifikace neumo¾òuje, pouze její roz¹íøení pro distribuované transakce s podporou pro komunikaci po síti (JTS, Java Transactions Service), která vyu¾ívá standard pro komunikaci objektù bì¾ících na rùzných strojích (CORBA, Common Object Requester Broker Architecture). Webové slu¾by musí splòovat základní vlastnosti, které byly popsány v první èásti práce. Pro splnìní tìchto vlastností bylo vytvoøeno nìkolik specifikací. Pro transakèní zpracování pomocí webových slu¾eb byla vytvoøena specifikace WS-Transactions (WS-Tx). Tato specifikace je tvoøena specifikacemi WS-Coordination (WS-C) \cite{ws-c-spec}, WS-AtomicTransactions (WS-AT) \cite{ws-at-spec} a WS-
+BusinessActivity (WS-BA) \cite{ws-ba-spec}  \cite{ws-docu}. Implementace WS-Tx v JBoss Transactions má oznaèení XTS.
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.4]{pic/WSPARTS.png}
+\caption{Model distribuovaného transakèního zpracování podle XTS.\cite {ESB-GUIDE} }
+\label{fig:PARTICIP}
+\end{center}
+\end{figure}
+
+\subsection*{WS-Coordination}
+Specifikace pro vytvoøení koordinátora jako slu¾by, která umo¾òuje vytvoøení koordinaèního kontextu, registrace koncových úèastníkù a podporu více koordinaèních protokolù. WS-C je mo¾no pou¾ít k vytvoøení koordinace jiných distribuovaných systémù ne¾ jsou transakèní. Pro vytvoøení koordinace transakèních systémù musí být WS-C doplnìna o specifikace WS-AT a WS-BA. 
+
+Koordinátor má na starosti vytvoøení koordinaèního kontextu, registraci úèastníkù a provedení 2PC protokolu. Koordinátor specifikace WS-TX se skládá z nìkolika základních komponent, pomocí kterých øídí transakci.
+\begin{itemize}
+\item {\bf Aktivaèní slu¾ba }\\
+Je zodpovìdná za vytvoøení vytvoøení koordinaèního kontextu. Koordinaèní kontext obsahuje typ koordinace, jedineèný identifikátor transakce, dobu èekání na odpovìï, typ provádìcího protokolu a dal¹í potøebné informace pro øízení transakce. Aktivaèní slu¾ba pøevezme od aplikace, která ji vyvolala, potøebné informace a vytvoøí koordinaèní kontext, který je vlo¾en do hlavièky SOAP zprávy.
+\item {\bf Registraèní slu¾ba }\\
+Jakmile pøijme aplikace transakèní kontext, zaène registrovat úèastníky do transakce. Registrace probíhá odesíláním zpráv registraèní slu¾bì. Zpráva musí obsahovat informace o úèastníkovi, který má být registrovaný, nejèastìji adresu úèastníka a roli jakou má hrát v transakci.
+\item {\bf Koordinátor}\\
+Koordinátor je zodpovìdný za øízení komunikace mezi jednotlivými úèastníky transakce. Dále pak øídí protokoly dokonèující transakci. V JBoss transactions je implementováno více druhù koordinátorù. Ka¾dá specifikace (WS-AT, WS-BA) má svou implementaci koordinátora. Koordinátor je reprezentován webovou slu¾bou a komunikace je realizována SOAP protokolem.
+\item {\bf Koordinaèní Kontext}\\
+Kontext obsahuje informace o transakci a jejich úèastnících a je propagován mezi v¹echny zúèastnìné slu¾by. 
+\end{itemize}
+\subsection*{WS-AtomicTransactions}
+WS-AT doplòuje WS-C o koordinaèní protokol atomických transakcí. Atomické transakce pomocí webových slu¾eb musí splòovat ACID vlastnosti \ref{ACID}.   Pro zabezpeèení ACID vlastností jsou ve specifikaci uvedeny 2 typy 2PC protokolu:
+
+
+\begin{itemize}
+\item {\bf 2PC nestálých zdrojù } (Volatile 2PC)\\
+Tento protokol není povinné pou¾ívat.  Protokol se pou¾ívá pøi pou¾ití vyrovnávací pamì» a je tøeba ji vymazat pøed dokonèením transakce. Vyrovnávací pamì» se pou¾ívá v transakcích pro vylep¹ení výkonu transakcí. Funkce protokolu je stejná jako pøi první fázi 2PC protokolu, kdy se zji¹»uje, zda jsou úèastníci pøipraveni. V tomto pøípadì jsou mo¾né 3 odpovìdi: kladná, záporná a pouze pro ètení. Odpovìï {\it Pouze pro ètení} se pou¾ívá, pokud úèastník neposkytuje transakèní data, a tedy se nezúèastní druhé fáze protokolu. Pøi záporné odpovìdi se transakce zru¹í a pøi kladné se pokraèuje 2PC protokolem pro trvalé zdroje.
+\item {\bf 2PC trvalých zdrojù } (Durable 2PC)\\
+Dvoufázový provádìcí protokol, jeho¾ obecný princip byl popsán v první èásti textu \ref{fig:2PC}. Na obrázku ní¾e vidíme jednotlivé stavy protokolu a mo¾nosti, které mohou nastat v jednotlivých stavech. První fáze se dá charakterizovat jak pøípravná a je zde nejvìt¹í pravdìpodobnost zru¹ení transakce. Bìhem pøíprav mù¾e koordinátor obdr¾et zprávu {\it pouze pro ètení}, co¾ znamená, ¾e daný úèastník neposkytuje transakèní data a bude tak vyøazen z druhé fáze protokolu ani¾ by do¹lo ke zru¹ení. Na první pohled není patrné jaký rozdíl je mezi pøechody {\it rollback} a {\it zru¹eno}. Pokud dojde k jakékoliv chybì bìhem transakce, musí koordinátor zru¹it transakci. Tuto situaci znázoròuje pøechod  {\it zru¹eno}. Následnì v¹ak koordinátor musí v¹em ostatním úèastníkùm rozeslat zprávy, aby uvedli ve¹keré provedené zmìny do pùvodního stavu, proto¾e transakce byla ukonèena.
+
+Bìhem druhé fáze není patrné, ¾e by mohlo dojít k nìjaké chybì. V této fázi se ji¾ pøedpokládá, ¾e úèastníci jsou pøipraveni provést dané zmìny a potvrdit je. Bìhem tohoto procesu v¹ak mù¾e dojít k neèekaným komplikacím, napøíklad výpadek jednoho z úèastníkù. Takovéto chyby vedou k heuristickým\footnote{Heuristický výstup transakce oznaèuje pojem, kdy se bìhem 2PC protokolu stane neoèekávána chyba. Napøíklad koordinátor odeslal pøíkaz rollback, ale úèastník z neznámého dùvodu provedl pøíkaz commit.} výsledkùm transakce. Øe¹ení takovýchto situací v¹ak nejsou souèástí tohoto protokolu a jsou pro nì definovány speciální postupy \cite{transaction}.
+\end{itemize}
+
+\begin{figure}[h!]
+\begin{center}
+ \includegraphics[bb=0.0mm 180.0mm 210mm 294mm,scale=0.8]{pic/2pc.pdf}
+\caption{2PC protokol podle specifikace WS-Tx. \cite{ws-at-spec}}
+\end{center}
+\end{figure}
+
+\subsection*{WS-BussinesActivity}
+Ne v¹echny transakce musí dodr¾ovat ACID vlastnosti, proto¾e pro nìkteré druhy aplikací nejsou vhodné. V nìkterých pøípadech není vhodné nebo mo¾né blokovat transakèní zdroj po celou dobu transakce, jak tomu je pøi atomických transakcí. Napøíklad pøi rezervaci zbo¾í, které je¹tì není na skladì, není mo¾né blokovat èást databáze, dokud nepøijde zbo¾í na sklad. Pro tento druh dlouho trvajících transakcí je vhodná tato specifikace. Oproti atomickým transakcím dlouho trvající transakce je mo¾né dokonèit a a¾ po dokonèení reagovat na chyby. To je vhodné napø. pøi odesílání elektronické po¹ty, kdy chyba pøi doruèení se projeví a¾ s urèitým zpo¾dìním. Takové chování transakce musí mít podporu na stranì úèastníka. Pøi atomických transakcích úèastník sdìlil svùj stav pouze na dotaz koordinátora. Pøi Dlouho trvajících transakcích úèastník informuje o vzniklé chybì samostatnì bez dotázání. Pøi vzniklé chybì se celá transakce vrátí do pùvodního stavu, tak jako pøi atomických transakcí. Pro navrácení provedených zmìn se 
+v kontextu dlouho trvajících transakcí pou¾ívá pojem {\it kompenzace}.
+
+Pro dlouho trvající transakce lze pou¾ít dva druhy protokolù provedení :
+\begin{itemize}
+\item {\bf Provedení s dokonèením úèastníkem } \\(Business agreement with participant completion)\\
+Nejprve je úèastník pøidán do transakce a jeho poèáteèní stav je nastaven na {\it aktivní }. Po vykonání úkolu, pro který byl úèastník pøidaný do transakce, mù¾e vyslat koordinátoru zprávu, která signalizuje {\it ukonèení } èinnosti úèastníka. Pokud ji¾ není tøeba úèastníka pøi transakcí mù¾e se ukonèit a tak se odhlásit z transakce. Úèastník také mù¾e vyslat zprávu signalizující ukonèení èinnosti, av¹ak èekající na pøíkaz ukonèení od koordinátora. Koordinátor následnì musí poslat pøíkaz úspì¹nému dokonèení transakce nebo ke kompenzaci provedených zmìn.
+\item {\bf Provedení s dokonèením koordinátorem}\\ (Business agreement with coordinator completion) \\
+Tento protokol je velmi podobný pøedcházejícímu, pouze s tím rozdílem, ¾e úèastník nemù¾e bez pøíkazu koordinátora ukonèit svou èinnost a odhlásit se z transakce.
+\end{itemize}
+
+
+\begin{figure}[h]
+\begin{center}
+ \includegraphics[scale=0.6]{pic/ws-ba.png}
+\caption{Business Activity protokol podle specifikace WS-Tx. \cite{ws-ba-spec} }
+\label{fig:BUSACT}
+\end{center}
+\end{figure}
+
+
+
+
+
+
+%=========================================================================
