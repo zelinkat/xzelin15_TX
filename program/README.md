@@ -21,7 +21,7 @@ Koordinační služba je umístěna v balíčku ServiceConsumer. Konzument je je
 
 Následně jsou vyvolávány služby, které se při vyvolání připojí k transakci. Poslední akce MyResponseAction vykonává ukončující příkazy transakce, které jsou obsaženy ve zprávě.
 
-Vyvolání služby je provedeno pomocí wiseSOAPClient akce, která byla upravena tak, aby dokázala vyhodnotit delist-delist informace, viz třída UpgradedSOAPClient. Tento SOAP klient byl vybrán, protože je zde možnost umístit vlastní soap handler, který vloží transakční kontext do SOAP hlavičky, a tak zajistí jeho propagaci. Před každou akcí SOAP klienta je předsazena akce DataBridge, která vyjme data z daného umístění v těle a jsou umístěna do standardního umístění (default location). Tak je zaručeno, že požadovaná data si "vyzvedne" požadovaná služba. Případně je možno data bridge upravit pro umístění odpovědi do zprávy.  
+Vyvolání služby je provedeno pomocí wiseSOAPClient akce, která byla upravena tak, aby dokázala vyhodnotit delist-delist informace, viz třída UpgradedSOAPClient. Tento SOAP klient byl vybrán, protože je zde možnost umístit vlastní soap handler, který vloží transakční kontext do SOAP hlavičky, a tak zajistí jeho propagaci. Před každou akci SOAP klienta je předsazena akce DataBridge, která vyjme data z daného umístění v těle a jsou umístěna do standardního umístění (default location). Tak je zaručeno, že požadované data si "vyzvedne" požadovaná služba. Případně je možno data bridge upravit pro umístění odpovědi do zprávy.  
 
 Poznámka: Data bridge bude možná nahrazeno smooks transformací - nedostatek informací/času.
 
